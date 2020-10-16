@@ -1,34 +1,37 @@
+// SPDX-License-Identifier: MIT
+
 pragma solidity 0.6.12;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/math/SafeMath.sol";
+// import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+// import "@openzeppelin/contracts/math/SafeMath.sol";
+import "./uniswapv2/libraries/SafeMath.sol";
+import "./uniswapv2/interfaces/IERC20.sol";
 
-
-contract SushiRestaurant {
+contract Platform {
     using SafeMath for uint256;
     event Enter(address indexed user, uint256 amount);
     event Leave(address indexed user, uint256 amount);
 
-    IERC20 public sushi;
+    IERC20 public bos;
 
     uint256 public reductionPerBlock;
     uint256 public multiplier;
     uint256 public lastMultiplerProcessBlock;
 
-    uint256 public accSushiPerShare;
-    uint256 public ackSushiBalance;
+    uint256 public accBosPerShare;
+    uint256 public ackBosBalance;
     uint256 public totalShares;
 
     struct UserInfo {
-        uint256 amount; // SUSHI stake amount
+        uint256 amount; // BOS stake amount
         uint256 share;
         uint256 rewardDebt;
     }
 
     mapping (address => UserInfo) public userInfo;
 
-    constructor(IERC20 _sushi, uint256 _reductionPerBlock) public {
-        sushi = _sushi;
+    constructor(IERC20 _bos, uint256 _reductionPerBlock) public {
+        bos = _bos;
         reductionPerBlock = _reductionPerBlock; // Use 999999390274979584 for 10% per month
         multiplier = 1e18; // Should be good for 20 years
         lastMultiplerProcessBlock = block.number;
@@ -49,58 +52,58 @@ contract SushiRestaurant {
         }
         multiplier = multiplier.mul(fraction).div(1e18);
         lastMultiplerProcessBlock = block.number;
-        // Update accSushiPerShare / ackSushiBalance
+        // Update accBosPerShare / ackBosBalance
         if (totalShares > 0) {
-            uint256 additionalSushi = sushi.balanceOf(address(this)).sub(ackSushiBalance);
-            accSushiPerShare = accSushiPerShare.add(additionalSushi.mul(1e12).div(totalShares));
-            ackSushiBalance = ackSushiBalance.add(additionalSushi);
+            uint256 additionalBos = bos.balanceOf(address(this)).sub(ackBosBalance);
+            accBosPerShare = accBosPerShare.add(additionalBos.mul(1e12).div(totalShares));
+            ackBosBalance = ackBosBalance.add(additionalBos);
         }
     }
 
     // Get user pending reward. May be outdated until someone calls cleanup.
     function getPendingReward(address _user) public view returns (uint256) {
         UserInfo storage user = userInfo[_user];
-        return user.share.mul(accSushiPerShare).div(1e12).sub(user.rewardDebt);
+        return user.share.mul(accBosPerShare).div(1e12).sub(user.rewardDebt);
     }
 
-    // Enter the restaurant. Pay some SUSHIs. Earn some shares.
+    // Enter the restaurant. Pay some BOSs. Earn some shares.
     function enter(uint256 _amount) public {
         cleanup();
-        safeSushiTransfer(msg.sender, getPendingReward(msg.sender));
-        sushi.transferFrom(msg.sender, address(this), _amount);
-        ackSushiBalance = ackSushiBalance.add(_amount);
+        safeBosTransfer(msg.sender, getPendingReward(msg.sender));
+        bos.transferFrom(msg.sender, address(this), _amount);
+        ackBosBalance = ackBosBalance.add(_amount);
         UserInfo storage user = userInfo[msg.sender];
         uint256 moreShare = _amount.mul(multiplier).div(1e18);
         user.amount = user.amount.add(_amount);
         totalShares = totalShares.add(moreShare);
         user.share = user.share.add(moreShare);
-        user.rewardDebt = user.share.mul(accSushiPerShare).div(1e12);
+        user.rewardDebt = user.share.mul(accBosPerShare).div(1e12);
         emit Enter(msg.sender, _amount);
     }
 
-    // Leave the restaurant. Claim back your SUSHIs.
+    // Leave the restaurant. Claim back your BOSs.
     function leave(uint256 _amount) public {
         cleanup();
-        safeSushiTransfer(msg.sender, getPendingReward(msg.sender));
+        safeBosTransfer(msg.sender, getPendingReward(msg.sender));
         UserInfo storage user = userInfo[msg.sender];
         uint256 lessShare = user.share.mul(_amount).div(user.amount);
         user.amount = user.amount.sub(_amount);
         totalShares = totalShares.sub(lessShare);
         user.share = user.share.sub(lessShare);
-        user.rewardDebt = user.share.mul(accSushiPerShare).div(1e12);
-        safeSushiTransfer(msg.sender, _amount);
+        user.rewardDebt = user.share.mul(accBosPerShare).div(1e12);
+        safeBosTransfer(msg.sender, _amount);
         emit Leave(msg.sender, _amount);
     }
 
-    // Safe sushi transfer function, just in case if rounding error causes pool to not have enough SUSHIs.
-    function safeSushiTransfer(address _to, uint256 _amount) internal {
-        uint256 sushiBal = sushi.balanceOf(address(this));
-        if (_amount > sushiBal) {
-            sushi.transfer(_to, sushiBal);
-            ackSushiBalance = ackSushiBalance.sub(sushiBal);
+    // Safe bos transfer function, just in case if rounding error causes pool to not have enough BOSs.
+    function safeBosTransfer(address _to, uint256 _amount) internal {
+        uint256 bosBal = bos.balanceOf(address(this));
+        if (_amount > bosBal) {
+            bos.transfer(_to, bosBal);
+            ackBosBalance = ackBosBalance.sub(bosBal);
         } else {
-            sushi.transfer(_to, _amount);
-            ackSushiBalance = ackSushiBalance.sub(_amount);
+            bos.transfer(_to, _amount);
+            ackBosBalance = ackBosBalance.sub(_amount);
         }
     }
 }
