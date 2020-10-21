@@ -1,5 +1,6 @@
 # The BoostSwap
-[BoostSwap](https://boostswap.org) aims to provide another DeFi platform for crypto-investors.
+[BoostSwap](https://boostswap.org) is a fully decentralized protocol for automated liquidity provision based on Ethereum with Yield Farming.
+Frequently called methods are optimized so as to spend less gas for usual transactions.
 
 
 Design
